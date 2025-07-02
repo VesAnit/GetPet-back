@@ -39,18 +39,19 @@ def get_credentials():
     """Get credentials for Google Cloud."""
     try:
         if "CLOUD_RUN" in os.environ:
-
             from google.auth import default
             credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+            logger.info("Using ADC for Cloud Run")
             return credentials
         credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+        logger.info(f"Loading credentials from: {credentials_path}")
         return service_account.Credentials.from_service_account_file(
             credentials_path,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
     except Exception as e:
         logger.error(f"Error getting credentials: {e}")
-        raise HTTPException(status_code=500, detail="Authentication error")
+        raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
 
 try:
     credentials = get_credentials()
@@ -70,8 +71,6 @@ except Exception as e:
     raise HTTPException(status_code=500, detail="Error loading breeds list")
 
 security = HTTPBearer()
-    raise HTTPException(status_code=500, detail="Failed to connect to Google Cloud services")
-
 
 
 def check_image_for_animals(image_data: bytes) -> bool:
