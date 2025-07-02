@@ -15,4 +15,5 @@ steps:
       - '--port=8080'
       - '--set-env-vars=CLOUD_RUN=true'
       - '--set-secrets=GOOGLE_APPLICATION_CREDENTIALS=pet-backend-service-account-key:latest'
-logging: CLOUD_LOGGING_ONLY
+options:
+  logging: CLOUD_LOGGING_ONLY
