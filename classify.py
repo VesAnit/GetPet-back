@@ -18,6 +18,7 @@ from models import Pet, Announcement, User as UserModel, Favorite
 from schemas import PetCreate, AnnouncementCreate, SearchRequest, AnnouncementResponse, ValidateImageResponse, FavoriteCreate, FavoriteResponse
 from database import get_db
 from auth import get_current_user_id
+from google.cloud import secretmanager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,12 +33,6 @@ ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png"}
 GCS_BUCKET_NAME = "pet-backend-uploads"
 GCS_UPLOAD_DIR = "uploads"
 
-import os
-import logging
-from google.cloud import secretmanager
-from google.oauth2 import service_account
-from fastapi import HTTPException
-
 logger = logging.getLogger(__name__)
 
 def get_credentials():
@@ -45,7 +40,7 @@ def get_credentials():
     try:
         if "CLOUD_RUN" in os.environ:
             client = secretmanager.SecretManagerServiceClient()
-            secret_name = "projects/YOUR_PROJECT_ID/secrets/pet-backend-service-account-key/versions/latest"
+            secret_name = "projects/scenic-torch-459715-t1/secrets/pet-backend-service-account-key/versions/latest"
             response = client.access_secret_version(name=secret_name)
             credentials_json = response.payload.data.decode("UTF-8")
             credentials_path = "/tmp/service-account-key.json"
@@ -65,6 +60,11 @@ def get_credentials():
         logger.error(f"Error getting credentials: {e}")
         raise HTTPException(status_code=500, detail="Authentication error")
 
+security = HTTPBearer()
+vision_client = vision.ImageAnnotatorClient(credentials=get_credentials())
+storage_client = storage.Client(credentials=get_credentials())
+bucket = storage_client.bucket(GCS_BUCKET_NAME)
+
 try:
     with open("breeds_map.json", "r", encoding="utf-8") as f:
         BREEDS_MAP = json.load(f)
@@ -73,7 +73,7 @@ except Exception as e:
     BREEDS_MAP = {"types": {"Dog": "Dog", "Cat": "Cat"}, "dog": {}, "cat": {}}
     raise HTTPException(status_code=500, detail="Error loading breeds list")
 
-security = HTTPBearer()
+
 
 def check_image_for_animals(image_data: bytes) -> bool:
     """Check that exactly one animal (cat or dog) is in the image."""
