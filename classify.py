@@ -32,31 +32,38 @@ ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png"}
 GCS_BUCKET_NAME = "pet-backend-uploads"
 GCS_UPLOAD_DIR = "uploads"
 
+import os
+import logging
+from google.cloud import secretmanager
+from google.oauth2 import service_account
+from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
+
 def get_credentials():
     """Get credentials for Google Cloud."""
     try:
         if "CLOUD_RUN" in os.environ:
-
-            from google.auth import default
-            credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-            return credentials
-        credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
-        return service_account.Credentials.from_service_account_file(
-            credentials_path,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
-        )
+            client = secretmanager.SecretManagerServiceClient()
+            secret_name = "projects/YOUR_PROJECT_ID/secrets/pet-backend-service-account-key/versions/latest"
+            response = client.access_secret_version(name=secret_name)
+            credentials_json = response.payload.data.decode("UTF-8")
+            credentials_path = "/tmp/service-account-key.json"
+            with open(credentials_path, "w") as f:
+                f.write(credentials_json)
+            return service_account.Credentials.from_service_account_file(
+                credentials_path,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+        else:
+            credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+            return service_account.Credentials.from_service_account_file(
+                credentials_path,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
     except Exception as e:
         logger.error(f"Error getting credentials: {e}")
         raise HTTPException(status_code=500, detail="Authentication error")
-
-try:
-    credentials = get_credentials()
-    storage_client = storage.Client(credentials=credentials)
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-    vision_client = vision.ImageAnnotatorClient(credentials=credentials)
-except Exception as e:
-    logger.error(f"Error initializing Google Cloud clients: {e}")
-    raise HTTPException(status_code=500, detail="Failed to connect to Google Cloud services")
 
 try:
     with open("breeds_map.json", "r", encoding="utf-8") as f:
