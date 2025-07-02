@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+
+# Database
+pets.db
+
+# Uploads
+uploads/
+
+# Secret keys & config
+.env
+keys.env
+pet-recognizer-bot-*.json
+
+# Virtual environments
+venv/
+.venv/
+
+
+credentials.json
+openapi.json
